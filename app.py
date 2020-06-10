@@ -1,69 +1,105 @@
-import dash
-import dash_core_components as dcc
-import dash_html_components as html
-import plotly.graph_objects as go
-import pandas as pd
-import numpy as np
-
-# Dataset 'Processing'
-
-df_emissions = pd.read_csv('emission_full.csv')
-
-df_emission_0 = df_emissions.loc[df_emissions['year']==2000]
-
-# Building our Graphs (nothing new here)
-
-data_choropleth = dict(type='choropleth',
-                       locations=df_emission_0['country_name'],  #There are three ways to 'merge' your data with the data pre embedded in the map
-                       locationmode='country names',
-                       z=np.log(df_emission_0['CO2_emissions']),
-                       text=df_emission_0['country_name'],
-                       colorscale='inferno',
-                       colorbar=dict(title='CO2 Emissions log scaled')
-                      )
-
-layout_choropleth = dict(geo=dict(scope='world',  #default
-                                  projection=dict(type='orthographic'
-                                                 ),
-                                  #showland=True,   # default = True
-                                  landcolor='black',
-                                  lakecolor='white',
-                                  showocean=True,   # default = False
-                                  oceancolor='azure'
-                                 ),
-                         
-                         title=dict(text='World Choropleth Map',
-                                    x=.5 # Title relative position according to the xaxis, range (0,1)
-                                   )
-                        )
-
-fig = go.Figure(data=data_choropleth, layout=layout_choropleth)
 
 
+    html.Div([
 
-# The App itself
+        html.Div([
+            html.Label('Choose country'),
+            dcc.Dropdown(
+                id='country_drop',
+                options=country_options,
+                value=['Portugal'],
+                multi=False
+            ),
 
-app = dash.Dash(__name__)
+            html.Br(),
 
-server = app.server
+            html.Label('Select year'),
+            dcc.Slider(
+                id='year_slider',
+                min=sum_mig['Year'].min(),
+                max=2017,
+                marks={str(i): '{}'.format(str(i)) for i in
+                       [2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017]},
+                value=2017,
+                step=1,
+                included=False
+            ),
+
+            html.Br(),
+
+            html.Label(''),
+            dcc.RadioItems(
+                id='mig_radio',
+                options=mig_options,
+                value='log Net',
+                labelStyle={'display': 'block'}
+            )
+
+        ], style={'width': '35%', 'display': 'inline-block', 'color' : '#111', 'font-family':'sans-serif', 'height': '300px', 'backgroundColor': '#fff'},
+            className='box class2'),
+
+        html.Div([
+            html.Div(dcc.Markdown('### MIGRATION AROUND THE WORLD'
+                                  '\n\nMigration refers to the movement of people from place to place. People migrate for many different reasons, which can be classified as *economic*, *social*, *political* or *environmental*.'
+                                  '\n\n* **Economic migration** is related to finding work or better economic opportunities. '
+                                  '\n\n* **Social migration** refers to the search of a better quality of life or to be closer to family and friends.'
+                                  '\n\n* **Political migration** occurs when people is moving to escape conflict, political persecution, terrorism, or human rights violations. '
+                                  '\n\n* **Environmental** causes of migration include the adverse effects of climate change, natural disasters, and other environmental factors. '
+                                  '\n\nOver the last years, migration has become a key issue for countries all over the world. More people than ever live in a country other than the one in which they were born. Therefore, as a group, we thought that it would be interesting to explore migration patterns and their underlying causes.'
+                                  )
+                     , style={'width': '35%', 'display': 'inline-block', 'height': '500px', 'color': '#111',
+                              'font-family': 'sans-serif', 'font-size':'13px', 'text-align': 'justify', 'vertical-align': 'middle',
+                              'padding': '5px'}
+                     ),
+            html.Div(dcc.Graph(
+                id='choropleth_graph'
+            ), style={'width': '60%', 'display': 'inline-block', 'font-family':'sans-serif', 'color' : '#111',
+                      'height': '500px', 'backgroundColor': '#fff'})
+        ], style={'width': '100%','display': 'inline-flex', 'height': '550px'}),
+
+    html.Div([
+        html.Footer([
+            html.Label(["Data Visualization | June 2020 | Carlos Pereira, M20190426 |"
+                        " Cátia Duro, M20190394 | João Miguel Lopes, M20190465 | Marta Faria, M20190178"]),
+
+            html.Label([" | Data available at: ", html.A("OECD",
+                                                      href="https://www.oecd.org/migration/mig/oecdmigrationdatabases.htm", target="_blank")], style={"margin-top": "0px"})
+        ], style ={'width': '100%', 'display': 'inline-block', 'color' : '#111', 'font-family':'sans-serif','font-size':'10px', 'text-align': 'centered','vertical-align': 'middle', 'padding': '5px'},
+            className='footer'),
+
+])])])
 
 
+######################################################Callbacks#########################################################
+
+@app.callback(
+    Output('choropleth_graph', 'figure'),
+    [Input('mig_radio', 'value')]
+)
+
+def update_graph(migvar):
+    if migvar=='log Net':
+        new_migvar='Net-Migration'
+    elif migvar=='log Inflow':
+        new_migvar='Migrants Inflow'
+    else:
+        new_migvar='Migrants Outflow'
+
+    data_choropleth = px.choropleth(sum_mig,
+                                    locations="Country",
+                                    locationmode="country names",
+                                    color=migvar,
+                                    hover_name="Country",
+                                    color_continuous_scale=px.colors.cmocean.matter,
+                                    animation_frame="Year",
+                                    projection="natural earth",
+                                    title=dict(text="Global " + str(new_migvar), x=.5),
+                                    labels={migvar:'Number of migrants <br> [log scale]'})
 
 
-app.layout = html.Div(children=[
-    html.H1(children='My First DashBoard'),
+    fig = go.Figure(data=data_choropleth)
 
-    html.Div(children='''
-        Example of html Container
-    '''),
-
-    dcc.Graph(
-        id='example-graph',
-        figure=fig
-    )
-])
-
-
+    return fig
 
 
 if __name__ == '__main__':
